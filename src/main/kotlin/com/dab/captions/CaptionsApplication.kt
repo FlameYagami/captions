@@ -11,29 +11,35 @@ import kotlin.collections.ArrayList
 
 @SpringBootApplication
 class CaptionsApplication : CommandLineRunner {
+
     override fun run(vararg args: String?) {
+        println("字幕时间轴偏移工具启动, 默认使用UTF_16LE编码")
+        val scanner = Scanner(System.`in`)
+        start(scanner)
+    }
+
+    private fun start(scanner: Scanner){
         val path: String
         val rollTime: Int
-        val scanner = Scanner(System.`in`)
-        println("请输入字幕的路径:")
+        println("请输入字幕路径:")
         var params = ""
         while (true) {
             params = scanner.nextLine()
             if (File(params).exists()) {
                 path = params
                 break
-            } else println("路径无效, 请重新输入字幕的路径:")
+            } else println("请重新输入有效的字幕路径:")
         }
-        println("请输入折越的时间(ms):")
+        println("请输入偏移时间(ms):")
         while (true) {
             params = scanner.nextLine()
             if (null != params.toIntOrNull()) {
                 rollTime = params.toInt()
                 break
-            } else println("时间无效, 请重新输入折越的时间(ms):")
+            } else println("请重新输入有效的偏移时间(ms):")
         }
         convert(path, rollTime)
-        run(null)
+        start(scanner)
     }
 }
 
@@ -43,26 +49,26 @@ fun main(args: Array<String>) {
 
 fun convert(path: String, rollTime: Int) {
     val savePath = "D:\\${TimeUtils.dateToString(Date(), TimeUtils.Format_Time_Ext)}.txt"
-    val format = "H:mm:ss.SS"
+    val format = "H:mm:ss.SSS"
     val startMark = "Dialogue:"
     val captions = loadCaptions(path).map {
         it.takeIf {
             it.contains(startMark) && it.split(",").count() >= 3
-        }?.apply {
-            val splits = this.split(",")
-            val startDate = TimeUtils.stringToDate(splits[1], format)
+        }?.let { it ->
+            val splits = it.split(",")
+            val startDate = TimeUtils.stringToDate(splits[1] + "0", format)
             val startRoll = rollTime(startDate, rollTime)
-            val startString = TimeUtils.dateToString(startRoll, format)
-            val endDate = TimeUtils.stringToDate(splits[2], format)
+            val startString = TimeUtils.dateToString(startRoll, format).substring(0, 10)
+            val endDate = TimeUtils.stringToDate(splits[2] + "0", format)
             val endRoll = rollTime(endDate, rollTime)
-            val endString = TimeUtils.dateToString(endRoll, format)
-			it.replace(splits[1], startString).replace(splits[2], endString)
+            val endString = TimeUtils.dateToString(endRoll, format).substring(0, 10)
+            it.replace(splits[1], startString).replace(splits[2], endString)
         } ?: ""
     }.filter {
         it.isNotBlank()
     }.toList()
     appendFile(captions, savePath)
-    println("转换完成, 默认路径: $savePath")
+    println("字幕时间轴偏移完成: $savePath")
     println()
 }
 
